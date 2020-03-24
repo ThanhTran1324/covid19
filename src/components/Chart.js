@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import {
-  BarChart,
+  ComposedChart,
   Bar,
   Brush,
   ReferenceLine,
@@ -9,6 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  Area,
   ResponsiveContainer
 } from "recharts";
 export class Chart extends Component {
@@ -16,7 +17,7 @@ export class Chart extends Component {
     super(props);
     this.state = {
       width: 0,
-      lastChecked: "",
+      dataUpdate: "",
       data: [
         // { name: "Page A", uv: 4000, pv: 2400, amt: 2400 },
       ]
@@ -27,17 +28,18 @@ export class Chart extends Component {
     this.setState({ width: width });
     this.getData();
   };
+
   getData = async () => {
-    const response = await fetch(
-      "https://covid-19-coronavirus-statistics.p.rapidapi.com/v1/stats?country=USA",
-      {
-        method: "GET",
-        headers: {
-          "x-rapidapi-host": process.env.REACT_APP_API_rapidapi_host,
-          "x-rapidapi-key": process.env.REACT_APP_API_rapidapi_key
-        }
-      }
-    )
+    const totalInfo = await fetch("https://corona.lmao.ninja/all", {
+      method: "GET"
+    }).then(response => {
+      return response.json();
+    });
+
+    this.setState({ dataUpdate: new Date(totalInfo.updated).toString() });
+    const response = await fetch("https://corona.lmao.ninja/states", {
+      method: "GET"
+    })
       .then(response => {
         return response.json();
       })
@@ -45,37 +47,40 @@ export class Chart extends Component {
         console.log(err);
       });
 
-    console.log(response.data);
-    this.setState({ lastChecked: response.data.lastChecked });
-    this.setState({ data: this.dataFilterFromrapidapi(response.data) });
+    this.setState({ data: this.dataFilterFromrapidapi(response) });
   };
   dataFilterFromrapidapi = data => {
     let newData = [];
-    data.covid19Stats.map(e => {
+    data.map(e => {
       let newItem = {
-        province: e.province,
-        case: e.confirmed,
-        deaths: e.deaths
+        state: e.state,
+        cases: e.cases,
+        deaths: e.deaths,
+        todayCases: e.todayCases
       };
       return newData.push(newItem);
     });
-    console.log(newData);
+
     return newData;
   };
   render() {
     return (
       <div className="container-fluid">
-        <h1 className="center">Coronavirus Cases in USA</h1>
-        <p>Updated : {this.state.lastChecked}</p>
+        <h1 className="center">Covid-19 Cases in USA</h1>
+        <p>
+          Last updated : {this.state.dataUpdate}
+          <br></br>
+          Data from https://www.worldometers.info/
+        </p>
         <ResponsiveContainer width="95%" height={400}>
-          <BarChart
+          <ComposedChart
             data={this.state.data}
             margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="province" />
+            <XAxis dataKey="state" />
             <YAxis />
-            <Tooltip />
+
             <Legend
               verticalAlign="top"
               wrapperStyle={{
@@ -83,11 +88,22 @@ export class Chart extends Component {
                 textTransform: "capitalize"
               }}
             />
+
             <ReferenceLine y={0} stroke="#000" />
-            <Brush dataKey="name" height={30} stroke="#8884d8" />
-            <Bar dataKey="deaths" fill="red" />
-            <Bar dataKey="case" fill="#82ca9d" />
-          </BarChart>
+            <Brush
+              startIndex={0}
+              endIndex={10}
+              dataKey="name"
+              height={30}
+              stroke="#53DB90"
+            ></Brush>
+            <Bar dataKey="todayCases" fill="#8884d8" />
+            <Bar dataKey="cases" fill="#82ca9d" />
+            <Tooltip
+              cursor={{ stroke: "rgba(126, 88, 96, 0.2)", strokeWidth: 30 }}
+            />
+            <Area type="monotone" dataKey="deaths" fill="red" stroke="red" />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     );
